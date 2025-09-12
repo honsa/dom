@@ -3,23 +3,19 @@ Group: WHATWG
 H1: DOM
 Shortname: dom
 Text Macro: TWITTER thedomstandard
-Text Macro: LATESTRD 2024-12
+Text Macro: LATESTRD 2025-06
 Abstract: DOM defines a platform-neutral model for events, aborting activities, and node trees.
 Translation: ja https://triple-underscore.github.io/DOM4-ja.html
 Translation: zh-Hans https://htmlspecs.com/dom/
+Translation: ko https://ko.htmlspecs.com/dom/
 Translate IDs: slottable slotable
 Indent: 1
 </pre>
 
 <pre class=anchors>
-urlPrefix: https://www.w3.org/TR/xml/#NT-
- type: type
-  text: Name; url: Name
-  text: Char; url: Char
-  text: PubidChar; url: PubidChar
-urlPrefix: https://www.w3.org/TR/xml-names/#NT-
- type: type
-  text: QName; url: QName
+urlPrefix: https://www.w3.org/TR/xml/#NT-; spec: XML
+ type: dfn
+  text: Name; url: Name; for: XML
 url: https://w3c.github.io/DOM-Parsing/#dom-range-createcontextualfragment
  type: method; text: createContextualFragment(); for: Range
 type: interface
@@ -42,8 +38,9 @@ urlPrefix: https://w3c.github.io/hr-time/#; spec: HR-TIME
 
 <pre class=link-defaults>
 spec:html; type:element
- text: title
+ text: head
  text: script
+ text: title
 </pre>
 
 
@@ -176,19 +173,64 @@ first <a>following</a> <a for=tree>sibling</a> or null if it has no <a for=tree>
 added.
 
 
-<h3 id=namespaces>Namespaces</h3>
+<h3 id=namespaces>Name validation</h3>
 
-<p>To <dfn export>validate</dfn> a <var>qualifiedName</var>, <a>throw</a> an
-"{{InvalidCharacterError!!exception}}" {{DOMException}} if <var>qualifiedName</var> does not match
-the <code><a type>QName</a></code> production.
+<p>A [=string=] is a <dfn>valid namespace prefix</dfn> if its [=string/length=] is at least 1 and it
+does not contain [=ASCII whitespace=], U+0000 NULL, U+002F (/), or U+003E (>).
 
-<p>To <dfn export>validate and extract</dfn> a <var>namespace</var> and <var>qualifiedName</var>,
-run these steps:
+<p>A [=string=] is a <dfn>valid attribute local name</dfn> if its [=string/length=] is at least 1
+and it does not contain [=ASCII whitespace=], U+0000 NULL, U+002F (/), U+003D (=), or U+003E (>).
+
+<p>A [=string=] |name| is a <dfn>valid element local name</dfn> if the following steps return true:
+
+<ol>
+ <li><p>If |name|'s [=string/length=] is 0, then return false.
+
+ <li>
+  <p>If |name|'s 0th [=code point=] is an [=ASCII alpha=], then:
+
+  <ol>
+   <li><p>If |name| contains [=ASCII whitespace=], U+0000 NULL, U+002F (/), or U+003E (>), then
+   return false.
+
+   <li><p>Return true.
+  </ol>
+
+ <li><p>If |name|'s 0th [=code point=] is not U+003A (:), U+005F (_), or in the range U+0080
+ to U+10FFFF, inclusive, then return false.
+
+ <li><p>If |name|'s subsequent [=code points=], if any, are not [=ASCII alphas=], [=ASCII digits=],
+ U+002D (-), U+002E (.), U+003A (:), U+005F (_), or in the range U+0080 to U+10FFFF, inclusive, then
+ return false.
+
+ <li><p>Return true.
+</ol>
+
+<p class=note>This concept is used to validate [=/element=] [=Element/local names=], when
+constructed by DOM APIs. The intention is to allow any name that is possible to construct using the
+HTML parser (the branch where the first [=code point=] is an [=ASCII alpha=]), plus some additional
+possibilities. For those additional possibilities, the ASCII range is restricted for historical
+reasons, but beyond ASCII anything is allowed.
+
+<div class=note>
+ <p>The following JavaScript-compatible regular expression is an implementation of
+ [=valid element local name=]:
+
+ <pre><code class=lang-javascript>
+  /^(?:[A-Za-z][^\0\t\n\f\r\u0020/>]*|[:_\u0080-\u{10FFFF}][A-Za-z0-9-.:_\u0080-\u{10FFFF}]*)$/u
+ </code></pre>
+</div>
+
+<p>A [=string=] is a <dfn>valid doctype name</dfn> if it does not contain [=ASCII whitespace=],
+U+0000 NULL, or U+003E (>).
+
+<p class="note">The empty string is a [=valid doctype name=].
+
+<p>To <dfn>validate and extract</dfn> a <var>namespace</var> and <var>qualifiedName</var>, given a
+<var>context</var>:
 
 <ol>
  <li><p>If <var>namespace</var> is the empty string, then set it to null.
-
- <li><p><a>Validate</a> <var>qualifiedName</var>.
 
  <li><p>Let <var>prefix</var> be null.
 
@@ -204,7 +246,18 @@ run these steps:
    <li><p>Set <var>prefix</var> to <var>splitResult</var>[0].
 
    <li><p>Set <var>localName</var> to <var>splitResult</var>[1].
+
+   <li><p>If <var>prefix</var> is not a [=valid namespace prefix=], then [=throw=] an
+   "{{InvalidCharacterError}}" {{DOMException}}.
   </ol>
+
+ <li><p><a for=/>Assert</a>: <var>prefix</var> is either null or a [=valid namespace prefix=].
+
+ <li><p>If <var>context</var> is "<code>attribute</code>" and <var>localName</var> is not a
+ [=valid attribute local name=], then [=throw=] an "{{InvalidCharacterError}}" {{DOMException}}.
+
+ <li><p>If <var>context</var> is "<code>element</code>" and <var>localName</var> is not a
+ [=valid element local name=], then [=throw=] an "{{InvalidCharacterError}}" {{DOMException}}.
 
  <li><p>If <var>prefix</var> is non-null and <var>namespace</var> is null, then <a>throw</a> a
  "{{NamespaceError!!exception}}" {{DOMException}}.
@@ -220,8 +273,19 @@ run these steps:
  nor <var>prefix</var> is "<code>xmlns</code>", then <a>throw</a> a "{{NamespaceError!!exception}}"
  {{DOMException}}.
 
- <li><p>Return <var>namespace</var>, <var>prefix</var>, and <var>localName</var>.
+ <li><p>Return (<var>namespace</var>, <var>prefix</var>, <var>localName</var>).
 </ol>
+
+<div class="note">
+ <p>Various APIs in this specification used to validate namespace prefixes, attribute local names,
+ element local names, and doctype names more strictly. This was done in a way that aligned with
+ various XML-related specifications. (Although not all rules from the those specifications were
+ enforced.)
+
+ <p>This was found to be annoying for web developers, especially since it meant there were some
+ names that could be created by the HTML parser, but not by DOM APIs. So, the validations have been
+ loosened to just those described above.
+</div>
 
 
 
@@ -2829,10 +2893,24 @@ before a <var>child</var>, with an optional <i>suppress observers flag</i>, run 
     <ol>
      <li><p>Run the <a>insertion steps</a> with <var>inclusiveDescendant</var>.
 
+     <li><p>If <var>inclusiveDescendant</var> is not <a>connected</a>, then
+     <a for=iteration>continue</a>.
+
      <li>
-      <p>If <var>inclusiveDescendant</var> is <a>connected</a>:
+      <p>If <var>inclusiveDescendant</var> is an <a for=/>element</a>:
 
       <ol>
+       <li><p>If <var>inclusiveDescendant</var>'s <a for=Element>custom element registry</a> is
+       null, then set <var>inclusiveDescendant</var>'s <a for=Element>custom element registry</a> to
+       the result of <a for=/>looking up a custom element registry</a> given
+       <var>inclusiveDescendant</var>'s <a for=tree>parent</a>.
+
+       <li><p>Otherwise, if <var>inclusiveDescendant</var>'s
+       <a for=Element>custom element registry</a>'s <a for=CustomElementRegistry>is scoped</a> is
+       true, <a for=set>append</a> <var>inclusiveDescendant</var>'s <a for=Node>node document</a> to
+       <var>inclusiveDescendant</var>'s <a for=Element>custom element registry</a>'s
+       <a for=CustomElementRegistry>scoped document set</a>.
+
        <li><p>If <var>inclusiveDescendant</var> is <a for=Element>custom</a>, then
        <a>enqueue a custom element callback reaction</a> with <var>inclusiveDescendant</var>,
        callback name "<code>connectedCallback</code>", and « ».
@@ -2845,9 +2923,27 @@ before a <var>child</var>, with an optional <i>suppress observers flag</i>, run 
         <code>connectedCallback</code> will be enqueued automatically during the
         <a>upgrade an element</a> algorithm.
       </ol>
-     </li>
+
+     <li>
+      <p>Otherwise, if <var>inclusiveDescendant</var> is a <a for=/>shadow root</a>:
+
+      <ol>
+       <li><p>If <var>inclusiveDescendant</var>'s <a for=ShadowRoot>custom element registry</a> is
+       null and <var>inclusiveDescendant</var>'s
+       <a for=ShadowRoot>keep custom element registry null</a> is false, then set
+       <var>inclusiveDescendant</var>'s <a for=ShadowRoot>custom element registry</a> to the result
+       of <a for=/>looking up a custom element registry</a> given <var>inclusiveDescendant</var>'s
+       <a for=DocumentFragment>host</a>.
+
+       <li><p>Otherwise, if <var>inclusiveDescendant</var>'s
+       <a for=ShadowRoot>custom element registry</a> is non-null and
+       <var>inclusiveDescendant</var>'s <a for=ShadowRoot>custom element registry</a>'s
+       <a for=CustomElementRegistry>is scoped</a> is true, <a for=set>append</a>
+       <var>inclusiveDescendant</var>'s <a for=Node>node document</a> to
+       <var>inclusiveDescendant</var>'s <a for=ShadowRoot>custom element registry</a>'s
+       <a for=CustomElementRegistry>scoped document set</a>.
+      </ol>
     </ol>
-   </li>
   </ol>
 
  <li><p>If <i>suppress observers flag</i> is unset, then <a>queue a tree mutation record</a> for
@@ -3267,12 +3363,31 @@ otherwise, if there is no such <a for=/>element</a>, null.
 
 <pre class=idl>
 interface mixin DocumentOrShadowRoot {
+  readonly attribute CustomElementRegistry? customElementRegistry;
 };
 Document includes DocumentOrShadowRoot;
 ShadowRoot includes DocumentOrShadowRoot;
 </pre>
 
-<p class=note>The {{DocumentOrShadowRoot}} mixin is expected to be used by other
+<dl class=domintro>
+ <dt><code><var>registry</var> = <var>documentOrShadowRoot</var> . {{DocumentOrShadowRoot/customElementRegistry}}</code>
+ <dd><p>Returns <var>documentOrShadowRoot</var>'s {{CustomElementRegistry}} object, if any;
+ otherwise null.
+</dl>
+
+<p>The <dfn attribute for=DocumentOrShadowRoot><code>customElementRegistry</code></dfn> getter steps
+are:
+
+<ol>
+ <li><p>If <a>this</a> is a <a for=/>document</a>, then return <a>this</a>'s
+ <a for=Document>custom element registry</a>.
+
+ <li><p><a for=/>Assert</a>: <a>this</a> is a {{ShadowRoot}} <a for=/>node</a>.
+
+ <li><p>Return <a>this</a>'s <a for=ShadowRoot>custom element registry</a>.
+</ol>
+
+<p class=note>The {{DocumentOrShadowRoot}} mixin is also expected to be used by other
 standards that want to define APIs shared between <a for=/>documents</a> and
 <a for=/>shadow roots</a>.
 
@@ -4703,15 +4818,17 @@ and <{template}>. SVG ought to do the same for its <{script}> elements, but does
 <p>To <dfn export id=concept-node-clone>clone a node</dfn> given a <a for=/>node</a> <var>node</var>
 and an optional <a for=/>document</a> <dfn export for="clone a node"><var>document</var></dfn>
 (default <var>node</var>'s <a for=Node>node document</a>), boolean
-<dfn export for="clone a node"><var>subtree</var></dfn> (default false), and
-<a for=/>node</a>-or-null <dfn export for="clone a node"><var>parent</var></dfn> (default null):
+<dfn export for="clone a node"><var>subtree</var></dfn> (default false), <a for=/>node</a>-or-null
+<dfn export for="clone a node"><var>parent</var></dfn> (default null), and null or a
+{{CustomElementRegistry}} object <dfn export for="clone a node"><var>fallbackRegistry</var></dfn>
+(default null):
 
 <ol>
  <li><p><a for=/>Assert</a>: <var>node</var> is not a <a for=/>document</a> or <var>node</var> is
  <var>document</var>.
 
- <li><p>Let <var>copy</var> be the result of <a>cloning a single node</a> given <var>node</var> and
- <var>document</var>.
+ <li><p>Let <var>copy</var> be the result of <a>cloning a single node</a> given <var>node</var>,
+ <var>document</var>, and <var>fallbackRegistry</var>.
 
  <li><p>Run any <a>cloning steps</a> defined for <var>node</var> in
  <a>other applicable specifications</a> and pass <var>node</var>, <var>copy</var>, and
@@ -4723,8 +4840,9 @@ and an optional <a for=/>document</a> <dfn export for="clone a node"><var>docume
  <li><p>If <var>subtree</var> is true, then for each <var>child</var> of <var>node</var>'s
  <a for=tree>children</a>, in <a>tree order</a>: <a>clone a node</a> given <var>child</var> with
  <a for="clone a node"><i>document</i></a> set to <var>document</var>,
- <a for="clone a node"><i>subtree</i></a> set to <var>subtree</var>, and
- <a for="clone a node"><i>parent</i></a> set to <var>copy</var>.
+ <a for="clone a node"><i>subtree</i></a> set to <var>subtree</var>,
+ <a for="clone a node"><i>parent</i></a> set to <var>copy</var>, and
+ <a for="clone a node"><i>fallbackRegistry</i></a> set to <var>fallbackRegistry</var>.
 
  <li>
   <p>If <var>node</var> is an <a for=/>element</a>, <var>node</var> is a
@@ -4734,20 +4852,32 @@ and an optional <a for=/>document</a> <dfn export for="clone a node"><var>docume
   <ol>
    <li><p><a for=/>Assert</a>: <var>copy</var> is not a <a for=Element>shadow host</a>.
 
+   <li><p>Let <var>shadowRootRegistry</var> be <var>node</var>'s <a for=Element>shadow root</a>'s
+   <a for=ShadowRoot>custom element registry</a>.
+
+   <li><p>If <var>shadowRootRegistry</var> <a>is a global custom element registry</a>, then set
+   <var>shadowRootRegistry</var> to <var>document</var>'s
+   <a>effective global custom element registry</a>.
+
    <li><p><a>Attach a shadow root</a> with <var>copy</var>, <var>node</var>'s
    <a for=Element>shadow root</a>'s <a for=ShadowRoot>mode</a>, true, <var>node</var>'s
    <a for=Element>shadow root</a>'s <a for=ShadowRoot>serializable</a>, <var>node</var>'s
-   <a for=Element>shadow root</a>'s <a for=ShadowRoot>delegates focus</a>, and <var>node</var>'s
-   <a for=Element>shadow root</a>'s <a for=ShadowRoot>slot assignment</a>.
+   <a for=Element>shadow root</a>'s <a for=ShadowRoot>delegates focus</a>, <var>node</var>'s
+   <a for=Element>shadow root</a>'s <a for=ShadowRoot>slot assignment</a>, and
+   <var>shadowRootRegistry</var>.
 
    <li><p>Set <var>copy</var>'s <a for=Element>shadow root</a>'s <a for=ShadowRoot>declarative</a>
    to <var>node</var>'s <a for=Element>shadow root</a>'s <a for=ShadowRoot>declarative</a>.
 
-   <li><p>For each <var>child</var> of <var>node</var>'s <a for=Element>shadow root</a>'s
-   <a for=tree>children</a>, in <a>tree order</a>: <a>clone a node</a> given <var>child</var> with
-   <a for="clone a node"><i>document</i></a> set to <var>document</var>,
-   <a for="clone a node"><i>subtree</i></a> set to <var>subtree</var>, and
-   <a for="clone a node"><i>parent</i></a> set to <var>copy</var>'s <a for=Element>shadow root</a>.
+   <li>
+    <p>For each <var>child</var> of <var>node</var>'s <a for=Element>shadow root</a>'s
+    <a for=tree>children</a>, in <a>tree order</a>: <a>clone a node</a> given <var>child</var> with
+    <a for="clone a node"><i>document</i></a> set to <var>document</var>,
+    <a for="clone a node"><i>subtree</i></a> set to <var>subtree</var>, and
+    <a for="clone a node"><i>parent</i></a> set to <var>copy</var>'s <a for=Element>shadow root</a>.
+
+    <p class="note">This intentionally does not pass the
+    <a for="clone a node"><i>fallbackRegistry</i></a> argument.
   </ol>
 
  <li><p>Return <var>copy</var>.
@@ -4755,8 +4885,9 @@ and an optional <a for=/>document</a> <dfn export for="clone a node"><var>docume
 </div>
 
 <div algorithm>
-<p>To <dfn>clone a single node</dfn> given a <a for=/>node</a> <var>node</var> and
-<a for=/>document</a> <var>document</var>:
+<p>To <dfn>clone a single node</dfn> given a <a for=/>node</a> <var>node</var>,
+<a for=/>document</a> <var>document</var>, and null or a {{CustomElementRegistry}} object
+<var>fallbackRegistry</var>:
 
 <ol>
  <li><p>Let <var>copy</var> be null.
@@ -4765,10 +4896,18 @@ and an optional <a for=/>document</a> <dfn export for="clone a node"><var>docume
   <p>If <var>node</var> is an <a for=/>element</a>:
 
   <ol>
+   <li><p>Let <var>registry</var> be <var>node</var>'s <a for=Element>custom element registry</a>.
+
+   <li><p>If <var>registry</var> is null, then set <var>registry</var> to
+   <var>fallbackRegistry</var>.
+
+   <li><p>If <var>registry</var> <a>is a global custom element registry</a>, then set
+   <var>registry</var> to <var>document</var>'s <a>effective global custom element registry</a>.
+
    <li><p>Set <var>copy</var> to the result of <a>creating an element</a>, given
    <var>document</var>, <var>node</var>'s <a for=Element>local name</a>, <var>node</var>'s
-   <a for=Element>namespace</a>, <var>node</var>'s <a for=Element>namespace prefix</a>, and
-   <var>node</var>'s <a><code>is</code> value</a>.
+   <a for=Element>namespace</a>, <var>node</var>'s <a for=Element>namespace prefix</a>,
+   <var>node</var>'s <a><code>is</code> value</a>, false, and <var>registry</var>.
 
    <li>
     <p><a for=list>For each</a> <var>attribute</var> of <var>node</var>'s
@@ -4776,7 +4915,7 @@ and an optional <a for=/>document</a> <dfn export for="clone a node"><var>docume
 
     <ol>
      <li><p>Let <var>copyAttribute</var> be the result of <a>cloning a single node</a> given
-     <var>attribute</var> and <var>document</var>.
+     <var>attribute</var>, <var>document</var>, and null.
 
      <li><p><a lt="append an attribute">Append</a> <var>copyAttribute</var> to <var>copy</var>.
     </ol>
@@ -4789,9 +4928,18 @@ and an optional <a for=/>document</a> <dfn export for="clone a node"><var>docume
 
   <dl class=switch>
    <dt>{{Document}}
-   <dd><p>Set <var>copy</var>'s <a for=Document>encoding</a>, <a for=Document>content type</a>,
-   <a for=Document>URL</a>, <a for=Document>origin</a>, <a for=Document>type</a>, and
-   <a for=Document>mode</a> to those of <var>node</var>.
+   <dd>
+    <ol>
+     <li><p>Set <var>copy</var>'s <a for=Document>encoding</a>, <a for=Document>content type</a>,
+     <a for=Document>URL</a>, <a for=Document>origin</a>, <a for=Document>type</a>,
+     <a for=Document>mode</a>, and <a for=Document>allow declarative shadow roots</a>, to those of
+     <var>node</var>.
+
+     <li><p>If <var>node</var>'s <a for=Document>custom element registry</a>'s
+     <a for=CustomElementRegistry>is scoped</a> is true, then set <var>copy</var>'s
+     <a for=Document>custom element registry</a> to <var>node</var>'s
+     <a for=Document>custom element registry</a>.
+    </ol>
 
    <dt>{{DocumentType}}
    <dd><p>Set <var>copy</var>'s <a for=DocumentType>name</a>, <a>public ID</a>, and
@@ -5306,7 +5454,7 @@ interface Document : Node {
   [NewObject] Comment createComment(DOMString data);
   [NewObject] ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
 
-  [CEReactions, NewObject] Node importNode(Node node, optional boolean subtree = false);
+  [CEReactions, NewObject] Node importNode(Node node, optional (boolean or ImportNodeOptions) options = false);
   [CEReactions] Node adoptNode(Node node);
 
   [NewObject] Attr createAttribute(DOMString localName);
@@ -5325,7 +5473,13 @@ interface Document : Node {
 interface XMLDocument : Document {};
 
 dictionary ElementCreationOptions {
+  CustomElementRegistry customElementRegistry;
   DOMString is;
+};
+
+dictionary ImportNodeOptions {
+  CustomElementRegistry customElementRegistry;
+  boolean selfOnly = false;
 };
 </pre>
 
@@ -5340,8 +5494,9 @@ known as <dfn export id=concept-document lt="document">documents</dfn>.
 <dfn export for=Document id=concept-document-url>URL</dfn> (a <a for=/>URL</a>),
 <dfn export for=Document id=concept-document-origin>origin</dfn> (an <a for=/>origin</a>),
 <dfn export for=Document id=concept-document-type>type</dfn> ("<code>xml</code>" or "<code>html</code>"),
-<dfn export for=Document id=concept-document-mode>mode</dfn> ("<code>no-quirks</code>", "<code>quirks</code>", or "<code>limited-quirks</code>"), and
-<dfn export for=Document>allow declarative shadow roots</dfn> (a boolean).
+<dfn export for=Document id=concept-document-mode>mode</dfn> ("<code>no-quirks</code>", "<code>quirks</code>", or "<code>limited-quirks</code>"),
+<dfn export for=Document>allow declarative shadow roots</dfn> (a boolean), and
+<dfn export for=Document>custom element registry</dfn> (null or a {{CustomElementRegistry}} object).
 [[!ENCODING]]
 [[!URL]]
 [[!HTML]]
@@ -5351,7 +5506,8 @@ known as <dfn export id=concept-document lt="document">documents</dfn>.
 "<code>application/xml</code>", <a for=Document>URL</a> is "<code>about:blank</code>",
 <a for=Document>origin</a> is an <a>opaque origin</a>,
 <a for=Document>type</a> is "<code>xml</code>", <a for=Document>mode</a> is
-"<code>no-quirks</code>", and its <a for=Document>allow declarative shadow roots</a> is false.
+"<code>no-quirks</code>", <a for=Document>allow declarative shadow roots</a> is false, and
+<a for=Document>custom element registry</a> is null.
 
 <p>A <a for=/>document</a> is said to be an <dfn export>XML document</dfn> if its
 <a for=Document>type</a> is "<code>xml</code>"; otherwise an <dfn export>HTML document</dfn>.
@@ -5548,11 +5704,18 @@ method steps are to return the <a>list of elements with class names <var>classNa
   <var>document</var> is an <a>HTML document</a> or <var>document</var>'s
   <a for=Document>content type</a> is "<code>application/xhtml+xml</code>"; otherwise null.
 
-  <p>If <var>localName</var> does not match the <code><a type>Name</a></code> production an
-  "{{InvalidCharacterError!!exception}}" {{DOMException}} will be thrown.
+  <p>When supplied, <var>options</var>'s {{ElementCreationOptions/customElementRegistry}} can be
+  used to set the {{CustomElementRegistry}}.
 
   <p>When supplied, <var>options</var>'s {{ElementCreationOptions/is}} can be used to create a
   <a>customized built-in element</a>.
+
+  <p>If <var>localName</var> is not a <a>valid element local name</a> an
+  "{{InvalidCharacterError}}" {{DOMException}} will be thrown.
+
+  <p>When both <var>options</var>'s {{ElementCreationOptions/customElementRegistry}} and
+  <var>options</var>'s {{ElementCreationOptions/is}} are supplied, a
+  "{{NotSupportedError!!exception}}" {{DOMException}} will be thrown.
 
  <dt><code><var>element</var> = <var>document</var> . <a method for=Document lt=createElementNS()>createElementNS(namespace, qualifiedName [, options])</a></code>
 
@@ -5562,8 +5725,15 @@ method steps are to return the <a>list of elements with class names <var>classNa
   <var>qualifiedName</var> or null. Its <a for=Element>local name</a> will be everything after
   U+003A (:) in <var>qualifiedName</var> or <var>qualifiedName</var>.
 
-  <p>If <var>qualifiedName</var> does not match the <code><a type>QName</a></code> production an
-  "{{InvalidCharacterError!!exception}}" {{DOMException}} will be thrown.
+  <p>When supplied, <var>options</var>'s {{ElementCreationOptions/customElementRegistry}} can be
+  used to set the {{CustomElementRegistry}}.
+
+  <p>When supplied, <var>options</var>'s {{ElementCreationOptions/is}} can be used to create a
+  <a>customized built-in element</a>.
+
+  <p>If <var>qualifiedName</var> is not a (possibly-prefixed)
+  <a>valid element local name</a> an "{{InvalidCharacterError}}" {{DOMException}} will be
+  thrown.
 
   <p>If one of the following conditions is true a "{{NamespaceError!!exception}}" {{DOMException}}
   will be thrown:
@@ -5584,8 +5754,9 @@ method steps are to return the <a>list of elements with class names <var>classNa
    is "<code>xmlns</code>".
   </ul>
 
-  <p>When supplied, <var>options</var>'s {{ElementCreationOptions/is}} can be used to create a
-  <a>customized built-in element</a>.
+  <p>When both <var>options</var>'s {{ElementCreationOptions/customElementRegistry}} and
+  <var>options</var>'s {{ElementCreationOptions/is}} are supplied, a
+  "{{NotSupportedError!!exception}}" {{DOMException}} will be thrown.
 
  <dt><code><var ignore>documentFragment</var> = <var>document</var> . {{createDocumentFragment()}}</code>
  <dd>Returns a {{DocumentFragment}} <a for=/>node</a>.
@@ -5607,8 +5778,7 @@ method steps are to return the <a>list of elements with class names <var>classNa
   <a for=/>node</a> whose
   <a for=ProcessingInstruction>target</a> is <var>target</var> and
   <a for=CharacterData>data</a> is <var>data</var>.
-  If <var>target</var> does not match the
-  <code><a type>Name</a></code> production an
+  If <var>target</var> does not match the <code>[=XML/Name=]</code> production an
   "{{InvalidCharacterError!!exception}}" {{DOMException}} will be thrown.
   If <var>data</var> contains "<code>?></code>" an
   "{{InvalidCharacterError!!exception}}" {{DOMException}} will be thrown.
@@ -5620,56 +5790,92 @@ method steps are to return the <a>list of elements with class names <var>classNa
 <p class=note>The HTML Standard will, e.g., define that for <code>html</code> and the
 <a>HTML namespace</a>, the {{HTMLHtmlElement}} interface is used. [[!HTML]]
 
+<div algorithm>
 <p>The
 <dfn method for=Document><code>createElement(<var>localName</var>, <var>options</var>)</code></dfn>
 method steps are:
 
 <ol>
- <li><p>If <var>localName</var> does not match the <code><a type>Name</a></code> production, then
+ <li><p>If <var>localName</var> is not a <a>valid element local name</a>, then
  <a>throw</a> an "{{InvalidCharacterError!!exception}}" {{DOMException}}.
 
  <li><p>If <a>this</a> is an <a>HTML document</a>, then set <var>localName</var> to
  <var>localName</var> in <a>ASCII lowercase</a>.
 
- <li><p>Let <var>is</var> be null.
-
- <li><p>If <var>options</var> is a <a for=/>dictionary</a> and
- <var>options</var>["{{ElementCreationOptions/is}}"] <a for=map>exists</a>, then set <var>is</var>
- to it.
+ <li><p>Let <var>registry</var> and <var>is</var> be the result of
+ <a>flattening element creation options</a> given <var>options</var> and <a>this</a>.
 
  <li><p>Let <var>namespace</var> be the <a>HTML namespace</a>, if <a>this</a> is an
  <a>HTML document</a> or <a>this</a>'s <a for=Document>content type</a> is
  "<code>application/xhtml+xml</code>"; otherwise null.
 
  <li><p>Return the result of <a>creating an element</a> given <a>this</a>, <var>localName</var>,
- <var>namespace</var>, null, <var>is</var>, and true.
+ <var>namespace</var>, null, <var>is</var>, true, and <var>registry</var>.
 </ol>
+</div>
 
+<div algorithm>
 <p>The <dfn noexport>internal <code>createElementNS</code> steps</dfn>, given <var>document</var>,
 <var>namespace</var>, <var>qualifiedName</var>, and <var>options</var>, are as follows:
 
 <ol>
- <li><p>Let <var>namespace</var>, <var>prefix</var>, and <var>localName</var> be the result of
- passing <var>namespace</var> and <var>qualifiedName</var> to <a>validate and extract</a>.
+ <li><p>Let (<var>namespace</var>, <var>prefix</var>, <var>localName</var>) be the result of
+ [=validate and extract|validating and extracting=] <var>namespace</var> and
+ <var>qualifiedName</var> given "<code>element</code>".
 
- <li><p>Let <var>is</var> be null.
-
- <li><p>If <var>options</var> is a <a for=/>dictionary</a> and
- <var>options</var>["{{ElementCreationOptions/is}}"] <a for=map>exists</a>, then set <var>is</var>
- to it.
+ <li><p>Let <var>registry</var> and <var>is</var> be the result of
+ <a>flattening element creation options</a> given <var>options</var> and <a>this</a>.
 
  <li><p>Return the result of <a>creating an element</a> given <var>document</var>,
- <var>localName</var>, <var>namespace</var>, <var>prefix</var>, <var>is</var>, and true.
+ <var>localName</var>, <var>namespace</var>, <var>prefix</var>, <var>is</var>, true, and
+ <var>registry</var>.
 </ol>
+</div>
 
+<div algorithm>
 <p>The
 <dfn method for=Document><code>createElementNS(<var>namespace</var>, <var>qualifiedName</var>, <var>options</var>)</code></dfn>
 method steps are to return the result of running the
 <a>internal <code>createElementNS</code> steps</a>, given <a>this</a>, <var>namespace</var>,
 <var>qualifiedName</var>, and <var>options</var>.
+</div>
+
+<div algorithm>
+<p>To <dfn>flatten element creation options</dfn>, given a string or {{ElementCreationOptions}}
+dictionary <var>options</var> and a <a for=/>document</a> <var>document</var>:
+
+<ol>
+ <li><p>Let <var>registry</var> be null.
+
+ <li><p>Let <var>is</var> be null.
+
+ <li>
+  <p>If <var>options</var> is a dictionary:
+
+  <ol>
+   <li><p>If <var>options</var>["{{ElementCreationOptions/customElementRegistry}}"]
+   <a for=map>exists</a>, then set <var>registry</var> to it.
+
+   <li><p>If <var>registry</var>'s <a for=CustomElementRegistry>is scoped</a> is false and
+   <var>registry</var> is not <var>document</var>'s <a for=Document>custom element registry</a>,
+   then <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+
+   <li><p>If <var>options</var>["{{ElementCreationOptions/is}}"] <a for=map>exists</a>, then set
+   <var>is</var> to it.
+
+   <li><p>If <var>registry</var> is non-null and <var>is</var> is non-null, then <a>throw</a> a
+   "{{NotSupportedError!!exception}}" {{DOMException}}.
+  </ol>
+
+ <li><p>If <var>registry</var> is null, then set <var>registry</var> to the result of
+ <a for=/>looking up a custom element registry</a> given <var>document</var>.
+
+ <li><p>Return <var>registry</var> and <var>is</var>.
+</ol>
 
 <p class=note>{{Document/createElement()}} and {{Document/createElementNS()}}'s <var>options</var>
 parameter is allowed to be a string for web compatibility.
+</div>
 
 <p>The <dfn method for=Document><code>createDocumentFragment()</code></dfn> method steps are to
 return a new {{DocumentFragment}} <a for=/>node</a> whose <a for=Node>node document</a> is
@@ -5678,9 +5884,6 @@ return a new {{DocumentFragment}} <a for=/>node</a> whose <a for=Node>node docum
 <p>The <dfn method for=Document><code>createTextNode(<var>data</var>)</code></dfn> method steps are
 to return a new {{Text}} <a for=/>node</a> whose <a for=CharacterData>data</a> is <var>data</var>
 and <a for=Node>node document</a> is <a>this</a>.
-
-<p class=note>No check is performed that <var>data</var> consists of
-characters that match the <code><a type>Char</a></code> production.
 
 <p>The <dfn method for=Document><code>createCDATASection(<var>data</var>)</code></dfn> method steps
 are:
@@ -5700,18 +5903,13 @@ are:
 to return a new {{Comment}} <a for=/>node</a> whose <a for=CharacterData>data</a> is <var>data</var>
 and <a for=Node>node document</a> is <a>this</a>.
 
-<p class=note>No check is performed that <var>data</var> consists of
-characters that match the <code><a type>Char</a></code> production
-or that it contains two adjacent hyphens or ends with a hyphen.
-
 <p>The
 <dfn method for=Document><code>createProcessingInstruction(<var>target</var>, <var>data</var>)</code></dfn>
 method steps are:
 
 <ol>
  <li>If <var>target</var> does not match the
- <!--<code data-anolis-type>PITarget</code>-->
- <code><a type>Name</a></code> production,
+ <code>[=XML/Name=]</code> production,
  then <a>throw</a> an "{{InvalidCharacterError!!exception}}" {{DOMException}}. <!-- DOM3 does not check for "xml" -->
 
  <li>If <var>data</var> contains the string
@@ -5725,18 +5923,17 @@ method steps are:
  <a for=Node>node document</a> set to <a>this</a>.
 </ol>
 
-<p class=note>No check is performed that <var>target</var> contains
-"<code>xml</code>" or "<code>:</code>", or that
-<var>data</var> contains characters that match the
-<code><a type>Char</a></code> production.
-
 <hr>
 
 <dl class=domintro>
- <dt><var>clone</var> = <var>document</var> . <a method for=Document lt=importNode()>importNode(<var>node</var> [, <var>subtree</var> = false])</a>
+ <dt><var>clone</var> = <var>document</var> . <a method for=Document lt=importNode()>importNode(<var>node</var> [, <var>options</var> = false])</a>
  <dd>
-  <p>Returns a copy of <var>node</var>. If <var>subtree</var> is true, the copy also includes the
+  <p>Returns a copy of <var>node</var>. If <var>options</var> is true or <var>options</var> is a
+  dictionary whose {{ImportNodeOptions/selfOnly}} is false, the copy also includes the
   <var>node</var>'s <a for=tree>descendants</a>.
+
+  <p><var>options</var>'s {{ImportNodeOptions/customElementRegistry}} can be used to set the
+  {{CustomElementRegistry}} of elements that have none.
 
   <p>If <var>node</var> is a <a for=/>document</a> or a <a for=/>shadow root</a>, throws a
   "{{NotSupportedError!!exception}}" {{DOMException}}.
@@ -5753,24 +5950,52 @@ method steps are:
 </dl>
 
 <div algorithm>
-<p>The <dfn method for=Document><code>importNode(<var>node</var>, <var>subtree</var>)</code></dfn>
+<p>The <dfn method for=Document><code>importNode(<var>node</var>, <var>options</var>)</code></dfn>
 method steps are:
 
 <ol>
  <li><p>If <var>node</var> is a <a for=/>document</a> or <a for=/>shadow root</a>, then <a>throw</a>
  a "{{NotSupportedError!!exception}}" {{DOMException}}.
 
+ <li><p>Let <var>subtree</var> be false.
+
+ <li><p>Let <var>registry</var> be null.
+
+ <li><p>If <var>options</var> is a boolean, then set <var>subtree</var> to <var>options</var>.
+
+ <li>
+  <p>Otherwise:
+
+  <ol>
+   <li><p>Set <var>subtree</var> to the negation of
+   <var>options</var>["{{ImportNodeOptions/selfOnly}}"].
+
+   <li><p>If <var>options</var>["{{ImportNodeOptions/customElementRegistry}}"]
+   <a for=map>exists</a>, then set <var>registry</var> to it.
+
+   <li><p>If <var>registry</var>'s <a for=CustomElementRegistry>is scoped</a> is false and
+   <var>registry</var> is not <a>this</a>'s <a for=Document>custom element registry</a>, then
+   <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+  </ol>
+
+ <li><p>If <var>registry</var> is null, then set <var>registry</var> to the result of
+ <a for=/>looking up a custom element registry</a> given <a>this</a>.
+
  <li><p>Return the result of <a>cloning a node</a> given <var>node</var> with
- <a for="clone a node"><i>document</i></a> set to <a>this</a> and
- <a for="clone a node"><i>subtree</i></a> set to <var>subtree</var>.
+ <a for="clone a node"><i>document</i></a> set to <a>this</a>,
+ <a for="clone a node"><i>subtree</i></a> set to <var>subtree</var>, and
+ <a for="clone a node"><i>fallbackRegistry</i></a> set to <var>registry</var>.
 </ol>
 </div>
 
+<div algorithm>
 <p><a lt="Other applicable specifications">Specifications</a> may define
 <dfn export id=concept-node-adopt-ext>adopting steps</dfn> for all or some <a for=/>nodes</a>. The
-algorithm is passed <var>node</var> and <var>oldDocument</var>, as indicated in the <a>adopt</a>
-algorithm.
+algorithm is passed <var ignore>node</var> and <var ignore>oldDocument</var>, as indicated in the
+<a>adopt</a> algorithm.
+</div>
 
+<div algorithm>
 <p>To <dfn export id=concept-node-adopt>adopt</dfn> a <var>node</var> into a <var>document</var>, run
 these steps:
 
@@ -5791,9 +6016,24 @@ these steps:
     <ol>
      <li><p>Set <var>inclusiveDescendant</var>'s <a for=Node>node document</a> to <var>document</var>.
 
-     <li><p>If <var>inclusiveDescendant</var> is an <a for=/>element</a>, then set the
-     <a for=Node>node document</a> of each <a>attribute</a> in <var>inclusiveDescendant</var>'s
-     <a for=Element>attribute list</a> to <var>document</var>.
+     <li><p>If <var>inclusiveDescendant</var> is a <a for=/>shadow root</a> and
+     <var>inclusiveDescendant</var>'s <a for=ShadowRoot>custom element registry</a>
+     <a>is a global custom element registry</a>, then set <var>inclusiveDescendant</var>'s
+     <a for=ShadowRoot>custom element registry</a> to <var>document</var>'s
+     <a>effective global custom element registry</a>.
+
+     <li>
+      <p>Otherwise, if <var>inclusiveDescendant</var> is an <a for=/>element</a>:
+
+      <ol>
+       <li><p>Set the <a for=Node>node document</a> of each <a>attribute</a> in
+       <var>inclusiveDescendant</var>'s <a for=Element>attribute list</a> to <var>document</var>.
+
+       <li><p>If <var>inclusiveDescendant</var>'s <a for=Element>custom element registry</a>
+       <a>is a global custom element registry</a>, then set <var>inclusiveDescendant</var>'s
+       <a for=Element>custom element registry</a> to <var>document</var>'s
+       <a>effective global custom element registry</a>.
+      </ol>
     </ol>
 
    <li><p>For each <var>inclusiveDescendant</var> in <var>node</var>'s
@@ -5807,7 +6047,9 @@ these steps:
    <a>adopting steps</a> with <var>inclusiveDescendant</var> and <var>oldDocument</var>.
   </ol>
 </ol>
+</div>
 
+<div algorithm>
 <p>The <dfn method for=Document><code>adoptNode(<var>node</var>)</code></dfn> method steps are:
 
 <ol>
@@ -5824,6 +6066,24 @@ these steps:
 
  <li><p>Return <var>node</var>.
 </ol>
+</div>
+
+<hr>
+
+<p>Null or a {{CustomElementRegistry}} object <var>registry</var>
+<dfn>is a global custom element registry</dfn> if <var>registry</var> is non-null and
+<var>registry</var>'s <a for=CustomElementRegistry>is scoped</a> is false.</p>
+
+<p>A <a for=/>document</a> <var>document</var>'s <dfn>effective global custom element registry</dfn>
+is:
+
+<ol>
+ <li><p>If <var>document</var>'s <a for=Document>custom element registry</a>
+ <a>is a global custom element registry</a>, then return <var>document</var>'s
+ <a for=Document>custom element registry</a>.
+
+ <li><p>Return null.
+</ol>
 
 <hr>
 
@@ -5831,8 +6091,8 @@ these steps:
 steps are:
 
 <ol>
- <li><p>If <var>localName</var> does not match the <code><a type>Name</a></code> production in XML,
- then <a>throw</a> an "{{InvalidCharacterError!!exception}}" {{DOMException}}.
+ <li><p>If <var>localName</var> is not a <a>valid attribute local name</a>, then
+ <a>throw</a> an "{{InvalidCharacterError!!exception}}" {{DOMException}}.
 
  <li>If <a>this</a> is an <a>HTML document</a>, then set <var>localName</var> to
  <var>localName</var> in <a>ASCII lowercase</a>.
@@ -5846,8 +6106,9 @@ steps are:
 method steps are:
 
 <ol>
- <li><p>Let <var>namespace</var>, <var>prefix</var>, and <var>localName</var> be the result of
- passing <var>namespace</var> and <var>qualifiedName</var> to <a>validate and extract</a>.
+ <li><p>Let (<var>namespace</var>, <var>prefix</var>, <var>localName</var>) be the result of
+ [=validate and extract|validating and extracting=] <var>namespace</var> and
+ <var>qualifiedName</var> given "<code>attribute</code>".
 
  <li><p>Return a new <a>attribute</a> whose <a for=Attr>namespace</a> is <var>namespace</var>,
  <a for=Attr>namespace prefix</a> is <var>prefix</var>, <a for=Attr>local name</a> is
@@ -5976,7 +6237,7 @@ created and associate it with that <a for=/>document</a>.
 <pre class=idl>
 [Exposed=Window]
 interface DOMImplementation {
-  [NewObject] DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
+  [NewObject] DocumentType createDocumentType(DOMString name, DOMString publicId, DOMString systemId);
   [NewObject] XMLDocument createDocument(DOMString? namespace, [LegacyNullToEmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);
   [NewObject] Document createHTMLDocument(optional DOMString title);
 
@@ -5985,16 +6246,12 @@ interface DOMImplementation {
 </pre>
 
 <dl class=domintro>
- <dt><code><var>doctype</var> = <var>document</var> . {{Document/implementation}} . {{createDocumentType(qualifiedName, publicId, systemId)}}</code>
+ <dt><code><var>doctype</var> = <var>document</var> . {{Document/implementation}} . {{createDocumentType(name, publicId, systemId)}}</code>
 
  <dd>
-  Returns a <a>doctype</a>, with the given
-  <var>qualifiedName</var>, <var>publicId</var>, and
-  <var>systemId</var>. If <var>qualifiedName</var> does not
-  match the <code><a type>Name</a></code> production, an
-  "{{InvalidCharacterError!!exception}}" {{DOMException}} is thrown, and if it does not match the
-  <code><a type>QName</a></code> production, a
-  "{{NamespaceError!!exception}}" {{DOMException}} is thrown.
+  Returns a <a>doctype</a>, with the given <var>name</var>, <var>publicId</var>, and <var>systemId</var>.
+
+  If <var>name</var> is not a <a>valid doctype name</a>, an "{{InvalidCharacterError}}" {{DOMException}} is thrown.
 
  <dt><code><var>doc</var> = <var>document</var> . {{Document/implementation}} . <a method for=DOMImplementation lt=createDocument()>createDocument(<var>namespace</var>, <var>qualifiedName</var> [, <var>doctype</var> = null])</a></code>
 
@@ -6023,21 +6280,18 @@ interface DOMImplementation {
 <div class=impl>
 
 <p>The
-<dfn method for=DOMImplementation><code>createDocumentType(<var>qualifiedName</var>, <var>publicId</var>, <var>systemId</var>)</code></dfn>
+<dfn method for=DOMImplementation><code>createDocumentType(<var>name</var>, <var>publicId</var>, <var>systemId</var>)</code></dfn>
 method steps are:
 
 <ol>
- <li><p><a>Validate</a> <var>qualifiedName</var>.
+ <li><p>If <var>name</var> is not a <a>valid doctype name</a>, then throw an "{{InvalidCharacterError}}"
+ {{DOMException}}.
 
- <li><p>Return a new <a>doctype</a>, with <var>qualifiedName</var> as its
+ <li><p>Return a new <a>doctype</a>, with <var>name</var> as its
  <a for=DocumentType>name</a>, <var>publicId</var> as its <a>public ID</a>, and <var>systemId</var>
  as its <a>system ID</a>, and with its <a for=Node>node document</a> set to the associated
  <a for=/>document</a> of <a>this</a>.
 </ol>
-
-<p class=note>No check is performed that <var>publicId</var> code points match the
-<code><a type>PubidChar</a></code> production or that <var>systemId</var> does not contain both a
-'<code>"</code>' and a "<code>'</code>".
 
 <p>The
 <dfn method for=DOMImplementation><code>createDocument(<var>namespace</var>, <var>qualifiedName</var>, <var>doctype</var>)</code></dfn>
@@ -6207,6 +6461,7 @@ interface ShadowRoot : DocumentFragment {
   readonly attribute boolean clonable;
   readonly attribute boolean serializable;
   readonly attribute Element host;
+
   attribute EventHandler onslotchange;
 };
 
@@ -6217,21 +6472,22 @@ enum SlotAssignmentMode { "manual", "named" };
 <p>{{ShadowRoot}} <a for=/>nodes</a> are simply known as
 <dfn export id=concept-shadow-root lt="shadow root">shadow roots</dfn>.
 
-<p><a for=/>Shadow roots</a> have an associated <dfn for=ShadowRoot>mode</dfn> ("<code>open</code>"
-or "<code>closed</code>").</p>
-
-<p><a for=/>Shadow roots</a> have an associated <dfn export for=ShadowRoot>delegates focus</dfn>.
-It is initially set to false.</p>
-
-<p><a for=/>Shadow roots</a> have an associated
-<dfn export for=ShadowRoot>available to element internals</dfn>. It is initially set to false.</p>
-
-<p><a for=/>Shadow roots</a> have an associated <dfn export for=ShadowRoot>declarative</dfn>
-(a boolean). It is initially set to false.</p>
-
 <p><a for=/>Shadow roots</a>'s associated <a for=DocumentFragment>host</a> is never null.</p>
 <!-- If we ever change this, e.g., add a ShadowRoot object constructor, that would have serious
      consequences for innerHTML. -->
+
+<p><a for=/>Shadow roots</a> have an associated <dfn for=ShadowRoot>mode</dfn> ("<code>open</code>"
+or "<code>closed</code>").</p>
+
+<p><a for=/>Shadow roots</a> have an associated <dfn export for=ShadowRoot>delegates focus</dfn>
+(a boolean). It is initially set to false.</p>
+
+<p><a for=/>Shadow roots</a> have an associated
+<dfn export for=ShadowRoot>available to element internals</dfn> (a boolean). It is initially set to
+false.</p>
+
+<p><a for=/>Shadow roots</a> have an associated <dfn export for=ShadowRoot>declarative</dfn>
+(a boolean). It is initially set to false.</p>
 
 <p><a for=/>Shadow roots</a> have an associated <dfn for=ShadowRoot>slot assignment</dfn>
 ("<code>manual</code>" or "<code>named</code>").
@@ -6242,11 +6498,25 @@ It is initially set to false.</p>
 <p><a for=/>Shadow roots</a> have an associated <dfn for=ShadowRoot>serializable</dfn> (a boolean).
 It is initially set to false.</p>
 
+<p><a for=/>Shadow roots</a> have an associated <dfn for=ShadowRoot>custom element registry</dfn>
+(null or a {{CustomElementRegistry}} object). It is initially null.</p>
+
+<p><a for=/>Shadow roots</a> have an associated
+<dfn for=ShadowRoot>keep custom element registry null</dfn> (a boolean). It is initially false.
+
+<p class=note>This can only ever be true in combination with declarative shadow roots. And it only
+matters for as long as the <a for=/>shadow root</a>'s <a for=ShadowRoot>custom element registry</a>
+is null.
+
+<hr>
+
 <p>A <a for=/>shadow root</a>'s <a>get the parent</a> algorithm, given an <var>event</var>, returns
 null if <var>event</var>'s <a>composed flag</a> is unset and <a for=/>shadow root</a> is the
 <a for=tree>root</a> of <var>event</var>'s <a for=Event>path</a>'s first struct's
 <a for=Event/path>invocation target</a>; otherwise <a for=/>shadow root</a>'s
 <a for=DocumentFragment>host</a>.
+
+<hr>
 
 <p>The <dfn attribute for=ShadowRoot><code>mode</code></dfn> getter steps are to return
 <a>this</a>'s <a for=ShadowRoot>mode</a>.</p>
@@ -6265,6 +6535,8 @@ null if <var>event</var>'s <a>composed flag</a> is unset and <a for=/>shadow roo
 
 <p>The <dfn attribute for=ShadowRoot><code>host</code></dfn> getter steps are to return
 <a>this</a>'s <a for=DocumentFragment>host</a>.
+
+<hr>
 
 <p>The <dfn attribute for=ShadowRoot><code>onslotchange</code></dfn> attribute is an
 <a>event handler IDL attribute</a> for the
@@ -6378,6 +6650,8 @@ interface Element : Node {
   ShadowRoot attachShadow(ShadowRootInit init);
   readonly attribute ShadowRoot? shadowRoot;
 
+  readonly attribute CustomElementRegistry? customElementRegistry;
+
   Element? closest(DOMString selectors);
   boolean matches(DOMString selectors);
   boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
@@ -6396,28 +6670,50 @@ dictionary ShadowRootInit {
   SlotAssignmentMode slotAssignment = "named";
   boolean clonable = false;
   boolean serializable = false;
+  CustomElementRegistry? customElementRegistry = null;
 };
 </pre>
+
+<p class=note>{{ShadowRootInit}} somewhat unusually allows both <code>undefined</code> and
+<code>null</code> to be passed to its {{ShadowRootInit/customElementRegistry}} member to allow web
+developers to pass a {{ShadowRoot}} node instead of a dictionary to {{Element/attachShadow()}}.
 
 <p>{{Element}} <a for=/>nodes</a> are simply known as
 <dfn export id=concept-element lt=element>elements</dfn>.
 
-<p><a for=/>Elements</a> have an associated
-<dfn export id=concept-element-namespace for=Element>namespace</dfn>,
-<dfn export id=concept-element-namespace-prefix for=Element>namespace prefix</dfn>,
-<dfn export id=concept-element-local-name for=Element>local name</dfn>,
-<dfn export id=concept-element-custom-element-state for=Element>custom element state</dfn>,
-<dfn export id=concept-element-custom-element-definition for=Element>custom element definition</dfn>,
-<dfn export id=concept-element-is-value for=Element><code>is</code> value</dfn>. When an
-<a for=/>element</a> is <a lt="create an element">created</a>, all of these values are
+<p><a for=/>Elements</a> have an associated:
+
+<dl>
+ <dt><dfn export id=concept-element-namespace for=Element>namespace</dfn>
+ <dd>Null or a non-empty string.
+
+ <dt><dfn export id=concept-element-namespace-prefix for=Element>namespace prefix</dfn>
+ <dd>Null or a non-empty string.
+
+ <dt><dfn export id=concept-element-local-name for=Element>local name</dfn>
+ <dd>A non-empty string.
+
+ <dt><dfn export for=Element>custom element registry</dfn>
+ <dd>Null or a {{CustomElementRegistry}} object.
+
+ <dt><dfn export id=concept-element-custom-element-state for=Element>custom element state</dfn>
+ <dd>"<code>undefined</code>", "<code>failed</code>", "<code>uncustomized</code>",
+ "<code>precustomized</code>", or "<code>custom</code>".
+
+ <dt><dfn export id=concept-element-custom-element-definition for=Element>custom element definition</dfn>
+ <dd>Null or a <a for=/>custom element definition</a>.
+
+ <dt><dfn export id=concept-element-is-value for=Element><code>is</code> value</dfn>
+ <dd>Null or a <a for=/>valid custom element name</a>.
+</dl>
+
+<p>When an <a for=/>element</a> is <a lt="create an element">created</a>, all of these values are
 initialized.
 
-<p>An <a for=/>element</a>'s <a for=Element>custom element state</a> is one of
-"<code>undefined</code>", "<code>failed</code>", "<code>uncustomized</code>",
-"<code>precustomized</code>", or "<code>custom</code>". An <a for=/>element</a> whose
-<a for=Element>custom element state</a> is "<code>uncustomized</code>" or "<code>custom</code>" is
-said to be <dfn export id=concept-element-defined for=Element>defined</dfn>. An <a for=/>element</a>
-whose <a for=Element>custom element state</a> is "<code>custom</code>" is said to be
+<p>An <a for=/>element</a> whose <a for=Element>custom element state</a> is
+"<code>uncustomized</code>" or "<code>custom</code>" is said to be
+<dfn export id=concept-element-defined for=Element>defined</dfn>. An <a for=/>element</a> whose
+<a for=Element>custom element state</a> is "<code>custom</code>" is said to be
 <dfn export id=concept-element-custom for=Element>custom</dfn>.
 
 <p class=note>Whether or not an element is <a for=Element>defined</a> is used to determine the
@@ -6490,14 +6786,18 @@ value of these steps:
 <p>To <dfn export id=concept-create-element>create an element</dfn>, given a <a for=/>document</a>
 <var>document</var>, string <var>localName</var>, string-or-null <var>namespace</var>, and
 optionally a string-or-null <var>prefix</var> (default null), string-or-null <var>is</var> (default
-null), and boolean <var>synchronousCustomElements</var> (default false):
+null), boolean <var>synchronousCustomElements</var> (default false), and "<code>default</code>",
+null, or a {{CustomElementRegistry}} object <var>registry</var> (default "<code>default</code>"):
 
 <ol>
  <li><p>Let <var>result</var> be null.
 
+ <li><p>If <var>registry</var> is "<code>default</code>", then set <var>registry</var> to the result
+ of <a for=/>looking up a custom element registry</a> given <var>document</var>.
+
  <li><p>Let <var>definition</var> be the result of
- <a lt="look up a custom element definition">looking up a custom element definition</a> given
- <var>document</var>, <var>namespace</var>, <var>localName</var>, and <var>is</var>.
+ <a for=/>looking up a custom element definition</a> given <var>registry</var>,
+ <var>namespace</var>, <var>localName</var>, and <var>is</var>.
 
  <li>
   <p>If <var>definition</var> is non-null, and <var>definition</var>'s
@@ -6509,13 +6809,9 @@ null), and boolean <var>synchronousCustomElements</var> (default false):
    <li><p>Let <var>interface</var> be the <a>element interface</a> for <var>localName</var> and the
    <a>HTML namespace</a>.
 
-   <li><p>Set <var>result</var> to a new <a for=/>element</a> that implements <var>interface</var>,
-   with no attributes, <a for=Element>namespace</a> set to the <a>HTML namespace</a>,
-   <a for=Element>namespace prefix</a> set to <var>prefix</var>, <a for=Element>local name</a> set
-   to <var>localName</var>, <a for=Element>custom element state</a> set to "<code>undefined</code>",
-   <a for=Element>custom element definition</a> set to null,
-   <a for=Element><code>is</code> value</a> set to <var>is</var>, and <a for=Node>node document</a> set to
-   <var>document</var>.
+   <li><p>Set <var>result</var> to the result of <a>creating an element internal</a> given
+   <var>document</var>, <var>interface</var>, <var>localName</var>, the <a>HTML namespace</a>,
+   <var>prefix</var>, "<code>undefined</code>", <var>is</var>, and <var>registry</var>.
 
    <li>
     <p>If <var>synchronousCustomElements</var> is true, then run this step while catching any
@@ -6547,74 +6843,81 @@ null), and boolean <var>synchronousCustomElements</var> (default false):
 
   <ol>
    <li>
-    <p>If <var>synchronousCustomElements</var> is true, then run these steps while catching any
-    exceptions:
+    <p>If <var>synchronousCustomElements</var> is true:
 
     <ol>
      <li><p>Let <var>C</var> be <var>definition</var>'s
      <a for="custom element definition">constructor</a>.
 
-     <li><p>Set <var>result</var> to the result of <a>constructing</a> <var>C</var>, with no
-     arguments.
-
-     <li><p>Assert: <var>result</var>'s <a for=Element>custom element state</a> and
-     <a for=Element>custom element definition</a> are initialized.
+     <li><p><a for=map>Set</a> the <a>surrounding agent</a>'s
+     <a for="similar-origin window agent">active custom element constructor map</a>[<var>C</var>] to
+     <var>registry</var>.
 
      <li>
-      <p>Assert: <var>result</var>'s <a for=Element>namespace</a> is the <a>HTML namespace</a>.
+      <p>Run these steps while catching any exceptions:
 
-      <p class=note>IDL enforces that <var>result</var> is an {{HTMLElement}} object, which all use
-      the <a>HTML namespace</a>.
+      <ol>
+       <li><p>Set <var>result</var> to the result of <a>constructing</a> <var>C</var>, with no
+       arguments.
 
-     <li><p>If <var>result</var>'s <a for=Element>attribute list</a> <a for=list>is not empty</a>,
-     then <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+       <li><p>Assert: <var>result</var>'s <a for=Element>custom element state</a> and
+       <a for=Element>custom element definition</a> are initialized.
 
-     <li><p>If <var>result</var> has <a for=tree>children</a>, then <a>throw</a> a
-     "{{NotSupportedError!!exception}}" {{DOMException}}.
+       <li>
+        <p>Assert: <var>result</var>'s <a for=Element>namespace</a> is the <a>HTML namespace</a>.
 
-     <li><p>If <var>result</var>'s <a for=tree>parent</a> is not null, then <a>throw</a> a
-     "{{NotSupportedError!!exception}}" {{DOMException}}.
+        <p class=note>IDL enforces that <var>result</var> is an {{HTMLElement}} object, which all
+        use the <a>HTML namespace</a>.
 
-     <li><p>If <var>result</var>'s <a for=Node>node document</a> is not <var>document</var>, then
-     <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+       <li><p>If <var>result</var>'s <a for=Element>attribute list</a> <a for=list>is not empty</a>,
+       then <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
 
-     <li><p>If <var>result</var>'s <a for=Element>local name</a> is not equal to
-     <var>localName</var>, then <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+       <li><p>If <var>result</var> has <a for=tree>children</a>, then <a>throw</a> a
+       "{{NotSupportedError!!exception}}" {{DOMException}}.
 
-     <li><p>Set <var>result</var>'s <a for=Element>namespace prefix</a> to <var>prefix</var>.
+       <li><p>If <var>result</var>'s <a for=tree>parent</a> is not null, then <a>throw</a> a
+       "{{NotSupportedError!!exception}}" {{DOMException}}.
 
-     <li><p>Set <var>result</var>'s <a for=Element><code>is</code> value</a> to null.
+       <li><p>If <var>result</var>'s <a for=Node>node document</a> is not <var>document</var>, then
+       <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+
+       <li><p>If <var>result</var>'s <a for=Element>local name</a> is not equal to
+       <var>localName</var>, then <a>throw</a> a "{{NotSupportedError!!exception}}" {{DOMException}}.
+
+       <li><p>Set <var>result</var>'s <a for=Element>namespace prefix</a> to <var>prefix</var>.
+
+       <li><p>Set <var>result</var>'s <a for=Element><code>is</code> value</a> to null.
+
+       <li><p>Set <var>result</var>'s <a for=Element>custom element registry</a> to
+       <var>registry</var>.
+      </ol>
+
+      <p>If any of these steps threw an exception <var>exception</var>:
+
+      <ol>
+       <li><p><a lt="report an exception">Report</a> <var>exception</var> for
+       <var>definition</var>'s <a for="custom element definition">constructor</a>'s corresponding
+       JavaScript object's <a>associated realm</a>'s <a for="realm">global object</a>.
+
+       <li><p>Set <var>result</var> to the result of <a>creating an element internal</a> given
+       <var>document</var>, {{HTMLUnknownElement}}, <var>localName</var>, the <a>HTML namespace</a>,
+       <var>prefix</var>, "<code>failed</code>", null, and <var>registry</var>.
+      </ol>
+
+     <li>
+      <p><a for=map>Remove</a> the <a>surrounding agent</a>'s
+      <a for="similar-origin window agent">active custom element constructor map</a>[<var>C</var>].
+
+      <p class=note>Under normal circumstances it will already have been removed at this point.
     </ol>
-
-    <p>If any of these steps threw an exception <var>exception</var>:
-
-    <ol>
-     <li><p><a lt="report an exception">Report</a> <var>exception</var> for <var>definition</var>'s
-     <a for="custom element definition">constructor</a>'s corresponding JavaScript object's
-     <a>associated realm</a>'s <a for="realm">global object</a>.
-
-     <li><p>Set <var>result</var> to a new <a for=/>element</a> that implements the
-     {{HTMLUnknownElement}} interface, with no attributes, <a for=Element>namespace</a> set to the
-     <a>HTML namespace</a>, <a for=Element>namespace prefix</a> set to <var>prefix</var>,
-     <a for=Element>local name</a> set to <var>localName</var>,
-     <a for=Element>custom element state</a> set to "<code>failed</code>",
-     <a for=Element>custom element definition</a> set to null,
-     <a for=Element><code>is</code> value</a> set to null, and <a for=Node>node document</a> set to
-     <var>document</var>.
-    </ol>
-   </li>
 
    <li>
     <p>Otherwise:
 
     <ol>
-     <li><p>Set <var>result</var> to a new <a for=/>element</a> that implements the {{HTMLElement}}
-     interface, with no attributes, <a for=Element>namespace</a> set to the <a>HTML namespace</a>,
-     <a for=Element>namespace prefix</a> set to <var>prefix</var>, <a for=Element>local name</a> set
-     to <var>localName</var>, <a for=Element>custom element state</a> set to
-     "<code>undefined</code>", <a for=Element>custom element definition</a> set to null,
-     <a for=Element><code>is</code> value</a> set to null, and <a for=Node>node document</a> set to
-     <var>document</var>.
+     <li><p>Set <var>result</var> to the result of <a>creating an element internal</a> given
+     <var>document</var>, {{HTMLElement}}, <var>localName</var>, the <a>HTML namespace</a>,
+     <var>prefix</var>, "<code>undefined</code>", null, and <var>registry</var>.
 
      <li><p><a>Enqueue a custom element upgrade reaction</a> given <var>result</var> and
      <var>definition</var>.
@@ -6630,13 +6933,9 @@ null), and boolean <var>synchronousCustomElements</var> (default false):
    <li><p>Let <var>interface</var> be the <a>element interface</a> for <var>localName</var> and
    <var>namespace</var>.
 
-   <li><p>Set <var>result</var> to a new <a for=/>element</a> that implements <var>interface</var>,
-   with no attributes, <a for=Element>namespace</a> set to <var>namespace</var>,
-   <a for=Element>namespace prefix</a> set to <var>prefix</var>, <a for=Element>local name</a> set
-   to <var>localName</var>, <a for=Element>custom element state</a> set to
-   "<code>uncustomized</code>", <a for=Element>custom element definition</a> set to null,
-   <a for=Element><code>is</code> value</a> set to <var>is</var>, and <a for=Node>node document</a> set to
-   <var>document</var>.
+   <li><p>Set <var>result</var> to the result of <a>creating an element internal</a> given
+   <var>document</var>, <var>interface</var>, <var>localName</var>, <var>namespace</var>,
+   <var>prefix</var>, "<code>uncustomized</code>", <var>is</var>, and <var>registry</var>.
 
    <li><p>If <var>namespace</var> is the <a>HTML namespace</a>, and either <var>localName</var> is a
    <a>valid custom element name</a> or <var>is</var> is non-null, then set <var>result</var>'s
@@ -6645,6 +6944,26 @@ null), and boolean <var>synchronousCustomElements</var> (default false):
  </li>
 
  <li><p>Return <var>result</var>.
+</ol>
+
+<p>To <dfn>create an element internal</dfn> given a <a for=/>document</a> <var>document</var>, an
+interface <var>interface</var> a string <var>localName</var>, a string-or-null <var>namespace</var>,
+a string-or-null <var>prefix</var>, a string <var>state</var>, a string-or-null <var>is</var>, and
+null or a {{CustomElementRegistry}} object <var>registry</var>:
+
+<ol>
+ <li><p>Let <var>element</var> be a new <a for=/>element</a> that implements <var>interface</var>,
+ with <a for=Element>namespace</a> set to <var>namespace</var>, <a for=Element>namespace prefix</a>
+ set to <var>prefix</var>, <a for=Element>local name</a> set to <var>localName</var>,
+ <a for=Element>custom element registry</a> set to <var>registry</var>,
+ <a for=Element>custom element state</a> set to <var>state</var>,
+ <a for=Element>custom element definition</a> set to null, <a for=Element><code>is</code> value</a>
+ set to <var>is</var>, and <a for=Node>node document</a> set to <var>document</var>.
+
+ <li><p><a for=/>Assert</a>: <var>element</var>'s <a for=Element>attribute list</a>
+ <a for=list>is empty</a>.
+
+ <li><p>Return <var>element</var>.
 </ol>
 
 <p><a for=/>Elements</a> also have an
@@ -7082,8 +7401,14 @@ method steps are:
 method steps are:
 
 <ol>
- <li><p>If <var>qualifiedName</var> does not match the <code><a type>Name</a></code> production in
- XML, then <a>throw</a> an "{{InvalidCharacterError!!exception}}" {{DOMException}}.
+ <li>
+  <p>If <var>qualifiedName</var> is not a <a>valid attribute local name</a>, then <a>throw</a> an
+  "{{InvalidCharacterError!!exception}}" {{DOMException}}.
+
+  <p class="note" id="node-setAttribute-qualifiedName">Despite the parameter naming,
+  <var>qualifiedName</var> is only used as a [=Attr/qualified name=] if an [=attribute=] already
+  exists with that qualified name. Otherwise, it is used as the [=Attr/local name=] of the new
+  attribute. We only need to validate it for the latter case.
 
  <li><p>If <a>this</a> is in the <a>HTML namespace</a> and its <a for=Node>node document</a> is an
  <a>HTML document</a>, then set <var>qualifiedName</var> to <var>qualifiedName</var> in
@@ -7107,8 +7432,9 @@ method steps are:
 method steps are:
 
 <ol>
- <li><p>Let <var>namespace</var>, <var>prefix</var>, and <var>localName</var> be the result of
- passing <var>namespace</var> and <var>qualifiedName</var> to <a>validate and extract</a>.
+ <li><p>Let (<var>namespace</var>, <var>prefix</var>, <var>localName</var>) be the result of
+ [=validate and extract|validating and extracting=] <var>namespace</var> and
+ <var>qualifiedName</var> given "<code>element</code>".
 
  <li><p><a>Set an attribute value</a> for <a>this</a> using <var>localName</var>, <var>value</var>,
  and also <var>prefix</var> and <var>namespace</var>.
@@ -7141,8 +7467,12 @@ steps are:
 method steps are:
 
 <ol>
- <li><p>If <var>qualifiedName</var> does not match the <code><a type>Name</a></code> production in
- XML, then <a>throw</a> an "{{InvalidCharacterError!!exception}}" {{DOMException}}.
+ <li>
+  <p>If <var>qualifiedName</var> is not a <a>valid attribute local name</a>, then <a>throw</a> an
+  "{{InvalidCharacterError!!exception}}" {{DOMException}}.
+
+  <p class="note">See <a href="#node-setAttribute-qualifiedName">the discussion above</a> about why
+  we validate it as a local name, instead of a qualified name.
 
  <li><p>If <a>this</a> is in the <a>HTML namespace</a> and its <a for=Node>node document</a> is an
  <a>HTML document</a>, then set <var>qualifiedName</var> to <var>qualifiedName</var> in
@@ -7217,12 +7547,12 @@ are:
 <hr>
 
 <dl class=domintro>
- <dt><code>var shadow = <var>element</var> . {{attachShadow(init)}}</code>
+ <dt><code><var>shadow</var> = <var>element</var> . {{attachShadow(init)}}</code>
  <dd><p>Creates a <a for=/>shadow root</a> for <var>element</var> and returns it.
 
- <dt><code>var shadow = <var>element</var> . {{shadowRoot}}</code>
+ <dt><code><var>shadow</var> = <var>element</var> . {{shadowRoot}}</code>
  <dd><p>Returns <var>element</var>'s <a for=Element>shadow root</a>, if any, and if
- <a for=/>shadow root</a>'s <a for=ShadowRoot>mode</a> is "<code>open</code>", and null otherwise.
+ <a for=/>shadow root</a>'s <a for=ShadowRoot>mode</a> is "<code>open</code>"; otherwise null.
 </dl>
 
 <p>A <dfn export>valid shadow host name</dfn> is:
@@ -7253,11 +7583,25 @@ are:
 <p>The <dfn method for=Element><code>attachShadow(<var>init</var>)</code></dfn> method steps are:
 
 <ol>
+ <li><p>Let <var>registry</var> be <a>this</a>'s <a for=Element>custom element registry</a>.
+
+ <li>
+  <p>If <var>init</var>["{{ShadowRootInit/customElementRegistry}}"] is non-null:
+
+  <ol>
+   <li><p>Set <var>registry</var> to <var>init</var>["{{ShadowRootInit/customElementRegistry}}"].
+
+   <li><p>If <var>registry</var>'s <a for=CustomElementRegistry>is scoped</a> is false and
+   <var>registry</var> is not <a>this</a>'s <a>node document</a>'s
+   <a for=Document>custom element registry</a>, then <a>throw</a> a
+   "{{NotSupportedError!!exception}}" {{DOMException}}.
+  </ol>
+
  <li><p>Run <a>attach a shadow root</a> with <a>this</a>,
  <var>init</var>["{{ShadowRootInit/mode}}"], <var>init</var>["{{ShadowRootInit/clonable}}"],
  <var>init</var>["{{ShadowRootInit/serializable}}"],
- <var>init</var>["{{ShadowRootInit/delegatesFocus}}"], and
- <var>init</var>["{{ShadowRootInit/slotAssignment}}"].
+ <var>init</var>["{{ShadowRootInit/delegatesFocus}}"],
+ <var>init</var>["{{ShadowRootInit/slotAssignment}}"], and <var>registry</var>.
 
  <li><p>Return <a>this</a>'s <a for=Element>shadow root</a>.
 </ol>
@@ -7266,8 +7610,8 @@ are:
 <div algorithm>
 <p>To <dfn id=concept-attach-a-shadow-root>attach a shadow root</dfn>, given an
 <a for=/>element</a> <var>element</var>, a string <var>mode</var>, a boolean <var>clonable</var>,
-a boolean <var>serializable</var>, a boolean <var>delegatesFocus</var>, and a string
-<var>slotAssignment</var>:
+a boolean <var>serializable</var>, a boolean <var>delegatesFocus</var>, a string
+<var>slotAssignment</var>, and null or a {{CustomElementRegistry}} object <var>registry</var>:
 
 <ol>
  <li><p>If <var>element</var>'s <a for=Element>namespace</a> is not the <a>HTML namespace</a>,
@@ -7282,10 +7626,10 @@ a boolean <var>serializable</var>, a boolean <var>delegatesFocus</var>, and a st
   <var>element</var>'s <a for=Element><code>is</code> value</a> is non-null:
 
   <ol>
-   <li><p>Let <var>definition</var> be the result of
-   <a lt="look up a custom element definition">looking up a custom element definition</a> given
-   <var>element</var>'s <a for=Node>node document</a>, its <a for=Element>namespace</a>, its
-   <a for=Element>local name</a>, and its <a for=Element><code>is</code> value</a>.
+   <li><p>Let <var>definition</var> be the result of <a>looking up a custom element definition</a>
+   given <var>element</var>'s <a for=Element>custom element registry</a>, its
+   <a for=Element>namespace</a>, its <a for=Element>local name</a>, and its
+   <a for=Element><code>is</code> value</a>.
 
    <li><p>If <var>definition</var> is not null and <var>definition</var>'s
    <a for="custom element definition">disable shadow</a> is true, then <a>throw</a> a
@@ -7341,6 +7685,9 @@ a boolean <var>serializable</var>, a boolean <var>delegatesFocus</var>, and a st
 
  <li><p>Set <var>shadow</var>'s <a for=ShadowRoot>serializable</a> to <var>serializable</var>.
 
+ <li><p>Set <var>shadow</var>'s <a for=ShadowRoot>custom element registry</a> to
+ <var>registry</var>.
+
  <li><p>Set <var>element</var>'s <a for=Element>shadow root</a> to <var>shadow</var>.
 </ol>
 </div>
@@ -7356,6 +7703,18 @@ a boolean <var>serializable</var>, a boolean <var>delegatesFocus</var>, and a st
 
  <li><p>Return <var>shadow</var>.
 </ol>
+</div>
+
+<hr>
+
+<dl class=domintro>
+ <dt><code><var>registry</var> = <var>element</var> . {{Element/customElementRegistry}}</code>
+ <dd><p>Returns <var>element</var>'s {{CustomElementRegistry}} object, if any; otherwise null.
+</dl>
+
+<div algorithm>
+<p>The <dfn attribute for=Element><code>customElementRegistry</code></dfn> getter steps are to
+return <a>this</a>'s <a for=Element>custom element registry</a>.
 </div>
 
 <hr>
